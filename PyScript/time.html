@@ -1,0 +1,28 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PyScript - time</title>
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+  </head>
+
+  <body>
+    <div id="outputDiv1"><a href="/PyScript.html">返回</a></div>
+    <div id="outputDiv2">Loading...</div>
+    <py-script>
+# 导入库
+import asyncio
+import datetime
+
+while True:
+  # 将当前时间显示在网页上
+  pyscript.write("outputDiv2", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+
+  # 延时, 减轻卡顿
+  await asyncio.sleep(0)
+
+  </py-script>
+  </body>
+</html>

@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <title>PyScript - DotCS Server Dashboard Plugin Connector</title>
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+    <style type="text/css">
+      .context-center{
+        display: flex;
+        justify-content: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <py-env>
+- 
+    </py-env>
+    <div id="showTime" class="context-center" style="white-space:pre-line;position:relative;top:20px"></div>
+    <div style="position:relative;top:20px;left:10%">
+      <!-- <div id="back"><a href="..">返回</a></div> -->
+      <div id="showUpdateTime" style="white-space:pre-line" style="display:none"></div>
+      <div id="text1" style="white-space:pre-line"></div>
+      <textarea id="showLog" style="width:80%;height:700px;display:none" disabled></textarea>
+      <div id="text2" style="white-space:pre-line"></div>
+      <div id="showOnlinePlayer" style="white-space:pre-line" style="display:none"></div>
+      <input id="inputSendCommand" class="border border-gray-300 rounded" type="text" placeholder="/..." style="width:80%;height:40px;display:none">
+      <button id="buttonSendCommand" class="text-white bg-blue-600 rounded" type="submit" pys-onClick="buttonSendCommand" style="width:80px;height:40px;position:relative;display:none">执行</button>
+      <div id="showSendCommandResult" style="white-space:pre-line" style="display:none"></div>
+      <input id="inputServerIP" class="border border-gray-300 rounded" type="text" placeholder="IP:port" style="width:40%;height:40px;position:relative;left:20%">
+      <br>
+      <input id="inputServerPassword" class="border border-gray-300 rounded" type="text" placeholder="password" style="width:40%;height:40px;position:relative;left:20%">
+      <br>
+      <button id="buttonConnectServer" class="text-white bg-blue-600 rounded" type="submit" pys-onClick="buttonConnectServer" style="width:40%;height:30px;position:relative;top:10px;left:20%">连接插件</button>
+    </div>
+    <py-script>
+import asyncio
+import pyodide
+import datetime
+import random
+
+status = "PRE"
+
+def color(element, text, replace = False):
+  if not replace:
+    text = Element(element).element.innerText+text
+  pyscript.write(element, text)
+
+def hideElement(element):
+  Element(element).element.setAttribute("style", "%s;display:none" % Element(element).element.getAttribute("style").replace(";display:none", "").replace("display:none;", "").replace("display:none", ""))
+
+def showElement(element):
+  Element(element).element.setAttribute("style", "%s" % Element(element).element.getAttribute("style").replace(";display:none", "").replace("display:none;", "").replace("display:none", ""))
+
+async def getUrl(url):
+  return (await (await pyodide.http.pyfetch(url)).string())
+
+async def buttonSendCommand(msg):
+  cmd = Element("inputSendCommand").element.value
+  Element("inputSendCommand").element.value = ""
+  if not cmd.startswith("/"):
+    color("showSendCommandResult", "[%s] 命令格式不正确\n" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), replace = True)
+    return
+  Element("buttonSendCommand").element.setAttribute("disabled", "")
+  color("showSendCommandResult", "[%s] 正在发送命令: %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), cmd), replace = True)
+  await asyncio.sleep(0.01)
+  try:
+    result = eval(await getUrl("http://%s/sendcmd?cmd=%s&password=%s" % (httpApiIP, cmd, httpApiPassword)))
+    if result["status"] == "success":
+      color("showSendCommandResult", "[%s] 执行命令成功: %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), cmd), replace = True)
+    else:
+      color("showSendCommandResult", "[%s] 执行命令失败, 原因: %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), result["reason"]), replace = True)
+  except Exception as err:
+    color("showSendCommandResult", "[%s] 执行命令失败, 原因: %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), str(err)), replace = True)
+  finally:
+    Element("buttonSendCommand").element.removeAttribute("disabled", "")
+
+async def buttonConnectServer(msg):
+  global httpApiIP, httpApiPassword, status
+  httpApiIP = Element("inputServerIP").element.value
+  httpApiPassword = Element("inputServerPassword").element.value
+  Element("buttonConnectServer").element.setAttribute("disabled", "")
+  pyscript.write("buttonConnectServer", "正在连接...")
+  await asyncio.sleep(0.1)
+  try:
+    result = eval(await getUrl("http://%s/sendcmd?cmd=connect&password=%s" % (httpApiIP, httpApiPassword)))
+    if result["status"] == "success":
+      pyscript.write("buttonConnectServer", "连接成功")
+      await asyncio.sleep(0.1)
+      hideElement("inputServerIP")
+      hideElement("inputServerPassword")
+      hideElement("buttonConnectServer")
+      showElement("showUpdateTime")
+      showElement("showOnlinePlayer")
+      showElement("inputSendCommand")
+      showElement("buttonSendCommand")
+      showElement("showLog")
+      color("text1", "租赁服日志:\n")
+      color("text2", "操作区:\n")
+      status = "AUTH SUCCESS"
+    else:
+      pyscript.write("buttonConnectServer", "%s" % result["reason"])
+  except Exception as err:
+    pyscript.write("buttonConnectServer", "连接失败")
+  finally:
+    Element("buttonConnectServer").element.removeAttribute("disabled")
+    await asyncio.sleep(0.1)
+
+async def showTime():
+  while True:
+    color("showTime", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4], replace = True)
+    await asyncio.sleep(0.05)
+
+async def showOnlinePlayer():
+  while True:
+    try:
+      result = eval(eval(await getUrl("http://%s/execFunc?func=getTarget('@a')&password=%s" % (httpApiIP, httpApiPassword)))["result"])
+      msg = "共 %d 名玩家在线:" % len(result)
+      for i in result:
+        msg += "\n%s" % i
+      color("showOnlinePlayer", msg, replace = True)
+      color("showUpdateTime", "[%s] 刷新成功" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), replace = True)
+      result = eval(await getUrl("http://%s/execFunc?func=%s&password=%s" % (httpApiIP, "open('serverMsg\\\\%s.txt', 'r', encoding = 'utf-8').read()" % datetime.datetime.now().strftime("%Y-%m-%d"), httpApiPassword)))["result"]
+      color("showLog", result, replace = True)
+      Element("showLog").element.scrollTop = 9999999
+      await asyncio.sleep(5)
+    except Exception as err:
+      color("showUpdateTime", "[%s] 连接已断开, 重连中, 原因: %s" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), str(err)), replace = True)
+      await asyncio.sleep(0.1)
+
+pyscript.run_until_complete(showTime())
+while status == "PRE":
+  await asyncio.sleep(0.1)
+
+pyscript.run_until_complete(showOnlinePlayer())
+  </py-script>
+  </body>
+</html>
+

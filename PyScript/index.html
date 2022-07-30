@@ -1,0 +1,35 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+    <title>PyScript</title>
+
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+  </head>
+
+  <body>
+    <py-env>
+- 
+    </py-env>
+    <div id="outputDiv1"><a href="..">返回</a></div>
+    <div id="outputDiv">Loading...</div>
+    <py-script>
+import asyncio
+import pyodide
+import datetime
+
+url = 'http://www.dotcs.community/PyScript/'
+result = await (await pyodide.http.pyfetch(url)).string()
+result = pyodide.http.open_url(url).getvalue()
+print(result)
+
+while True:
+  pyscript.write("outputDiv", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+  await asyncio.sleep(0)
+
+    </py-script>
+  </body>
+</html>
