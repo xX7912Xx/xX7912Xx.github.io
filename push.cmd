@@ -1,4 +1,5 @@
 @echo off
+cd "%~dp0"
 echo DotCS_website - Uploading files to Github.
 git config --global core.autocrlf false
 set /p branch=Please enter your branch name: 
